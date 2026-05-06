@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data files (regenerable from pipeline)
+data/raw/
+data/processed/
+*.csv
+*.sqlite
+*.db
+!data/.gitkeep
+
+# Secrets and config
+.env
+*.key
+config.local.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
