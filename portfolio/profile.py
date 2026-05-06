@@ -8,8 +8,9 @@ to the asset-allocation literature (Brinson, Hood, Beebower 1986).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
+from typing import Optional
 
 
 class RiskProfile(str, Enum):
@@ -19,12 +20,15 @@ class RiskProfile(str, Enum):
     AGGRESSIVE = "aggressive"
 
 
-# Asset classes used by the screener and allocator. These match the
-# `sector` field used for ETFs in `pipeline.universe.CURATED_ETFS`,
-# plus a synthetic "AU equity (stocks)" class for individual ASX shares.
+class GeoTilt(str, Enum):
+    AU_HEAVY = "au_heavy"           # boost AU exposure
+    NEUTRAL = "neutral"             # use defaults
+    GLOBAL_HEAVY = "global_heavy"   # boost international exposure
+
+
 class AssetClass(str, Enum):
-    AU_STOCKS = "AU stocks"        # individual ASX-listed equities
-    AU_EQUITY = "AU equity"        # broad AU equity ETFs (VAS, IOZ, etc.)
+    AU_STOCKS = "AU stocks"
+    AU_EQUITY = "AU equity"
     GLOBAL_EQUITY = "Global equity"
     US_EQUITY = "US equity"
     EM_EQUITY = "EM equity"
@@ -37,10 +41,14 @@ class AssetClass(str, Enum):
     COMMODITIES = "Commodities"
 
 
-# Target asset allocations by risk profile. Numbers must sum to 1.0
-# within each profile. These are loosely modelled on Vanguard's
-# lifecycle fund glide path (more equity for higher risk tolerance,
-# more bonds/cash for lower).
+# Asset classes that count as "AU" vs "Global" for the geographic tilt.
+AU_CLASSES = {AssetClass.AU_STOCKS, AssetClass.AU_EQUITY, AssetClass.AU_BONDS,
+              AssetClass.AU_PROPERTY}
+GLOBAL_CLASSES = {AssetClass.GLOBAL_EQUITY, AssetClass.US_EQUITY,
+                  AssetClass.EM_EQUITY, AssetClass.GLOBAL_BONDS,
+                  AssetClass.GLOBAL_PROPERTY, AssetClass.THEMATIC}
+
+
 TARGET_ALLOCATIONS: dict[RiskProfile, dict[AssetClass, float]] = {
     RiskProfile.CONSERVATIVE: {
         AssetClass.AU_EQUITY:       0.18,
@@ -89,16 +97,23 @@ TARGET_ALLOCATIONS: dict[RiskProfile, dict[AssetClass, float]] = {
 @dataclass
 class UserProfile:
     """Everything needed to construct a candidate portfolio."""
-    capital: float                          # AUD
+    capital: float
     risk_profile: RiskProfile
-    horizon_years: int                      # how long they intend to hold
+    horizon_years: int
 
-    # Preferences (all optional; defaults match a "no preferences" user).
-    prefer_income: bool = False             # tilt toward high-yield instruments
-    esg_only: bool = False                  # only ESG-tilted instruments
-    etfs_only: bool = False                 # exclude individual stocks
-    exclude_sectors: tuple[str, ...] = ()   # GICS sector names to exclude
-    max_position_size: float = 0.10         # cap any single holding at 10%
+    # Tilts and screens.
+    prefer_income: bool = False
+    esg_only: bool = False
+    etfs_only: bool = False
+    exclude_sectors: tuple[str, ...] = ()
+    geo_tilt: GeoTilt = GeoTilt.NEUTRAL
+    prefer_hedged: bool = False
+    min_dividend_yield: float = 0.0          # exclude instruments below this
+    max_volatility: Optional[float] = None   # exclude instruments above this
+
+    # Holdings count + concentration controls.
+    max_holdings: int = 8                    # total cap; default keeps it tight
+    max_position_size: float = 0.15          # cap on any single holding
 
     def __post_init__(self):
         if self.capital <= 0:
@@ -107,18 +122,18 @@ class UserProfile:
             raise ValueError("horizon_years cannot be negative")
         if not 0 < self.max_position_size <= 1.0:
             raise ValueError("max_position_size must be in (0, 1]")
+        if not 3 <= self.max_holdings <= 30:
+            raise ValueError("max_holdings must be between 3 and 30")
+        if self.min_dividend_yield < 0:
+            raise ValueError("min_dividend_yield cannot be negative")
+        if self.max_volatility is not None and self.max_volatility <= 0:
+            raise ValueError("max_volatility must be positive if set")
 
     def target_allocation(self) -> dict[AssetClass, float]:
-        """Asset-class targets for this profile, with horizon adjustment.
-
-        Short horizons reduce equity exposure and increase cash/bonds,
-        regardless of stated risk profile, because short-horizon equity
-        exposure is dominated by drawdown risk.
-        """
+        """Asset-class targets, with horizon and geographic-tilt overlays applied."""
         base = dict(TARGET_ALLOCATIONS[self.risk_profile])
 
-        # Horizon override: under 5 years, force at least 30% defensive.
-        # Under 2 years, force at least 60% defensive.
+        # Horizon override: short horizons force more defensive holdings.
         defensive = {AssetClass.AU_BONDS, AssetClass.GLOBAL_BONDS, AssetClass.CASH}
         defensive_weight = sum(base.get(ac, 0) for ac in defensive)
         target_min_defensive = 0.0
@@ -129,7 +144,6 @@ class UserProfile:
 
         if defensive_weight < target_min_defensive and target_min_defensive > 0:
             shortfall = target_min_defensive - defensive_weight
-            # Scale equity down proportionally and feed it into cash.
             equity = {ac: w for ac, w in base.items() if ac not in defensive}
             equity_total = sum(equity.values())
             if equity_total > 0:
@@ -138,6 +152,21 @@ class UserProfile:
                     base[ac] *= scale
                 base[AssetClass.CASH] = base.get(AssetClass.CASH, 0) + shortfall
 
-        # Normalise to 1.0 (rounding/scaling can drift).
+        # Geographic-tilt overlay: scale AU vs Global classes.
+        if self.geo_tilt == GeoTilt.AU_HEAVY:
+            au_factor, global_factor = 1.30, 0.75
+        elif self.geo_tilt == GeoTilt.GLOBAL_HEAVY:
+            au_factor, global_factor = 0.75, 1.30
+        else:
+            au_factor = global_factor = 1.0
+
+        if au_factor != 1.0 or global_factor != 1.0:
+            for ac in list(base.keys()):
+                if ac in AU_CLASSES:
+                    base[ac] *= au_factor
+                elif ac in GLOBAL_CLASSES:
+                    base[ac] *= global_factor
+
+        # Renormalise to 1.0.
         total = sum(base.values())
         return {ac: w / total for ac, w in base.items() if w > 0}
