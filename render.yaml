@@ -1,0 +1,18 @@
+# Render blueprint - https://render.com/docs/blueprint-spec
+# Imports this file on first connect; subsequent pushes auto-deploy.
+
+services:
+  - type: web
+    name: asx-portfolio-analyser
+    runtime: python
+    plan: free
+    region: singapore        # closest to AU users; change to oregon if Australia tier unavailable
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn web.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
+      - key: ANTHROPIC_API_KEY
+        sync: false           # set in Render dashboard, not in this file

@@ -19,6 +19,7 @@ data/processed/
 *.csv
 *.sqlite
 *.db
+!data/market.sqlite        # allow the production database file
 !data/.gitkeep
 
 # Secrets and config
@@ -34,3 +35,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Logs
+*.log
