@@ -10,26 +10,34 @@
   <script src="/static/app.js" defer></script>
 </head>
 <body>
+
 <header class="site-header">
   <div class="container header-row">
     <div class="brand">
       <span class="brand-mark"></span>
       <span class="brand-name">ASX Portfolio Analyser</span>
     </div>
-    <nav>
+    <nav class="header-nav">
+      <a href="#how-it-works" class="nav-link">How it works</a>
+      <a href="https://github.com/ArlenChijian/asx-portfolio-analyser/blob/main/docs/METHODOLOGY.md" class="nav-link" target="_blank" rel="noopener">Methodology</a>
       <a href="https://github.com/ArlenChijian/asx-portfolio-analyser" class="nav-link" target="_blank" rel="noopener">GitHub</a>
     </nav>
   </div>
 </header>
 
 <main class="container">
+
   <section class="hero">
     <h1>A transparent portfolio screen for the ASX.</h1>
     <p class="lede">
       Tell us your capital, risk tolerance, and horizon. We return a candidate
-      portfolio of ASX-listed equities and ETFs with full reasoning and the
-      historical numbers behind every choice.
+      portfolio of ASX-listed equities and ETFs with full reasoning, historical
+      numbers, and an AI-generated explanation.
     </p>
+    <div class="hero-meta" id="hero-meta" aria-live="polite">
+      <span class="hero-pill" id="data-pill">Loading dataset info&hellip;</span>
+      <span class="hero-pill"><span class="ai-badge">AI</span> Powered by Claude Haiku 4.5</span>
+    </div>
     <p class="disclaimer-inline">
       <strong>Educational analysis only.</strong> Not financial advice. See the
       <a href="https://moneysmart.gov.au/" target="_blank" rel="noopener">ASIC MoneySmart</a>
@@ -37,12 +45,21 @@
     </p>
   </section>
 
-  <!-- ---------- AI: natural-language input ---------- -->
+  <details class="how-card" id="how-it-works">
+    <summary>How it works <span class="muted">(30 second read)</span></summary>
+    <div class="how-grid">
+      <div><strong>1. Profile.</strong> Tell us about you — in plain English or via the form.</div>
+      <div><strong>2. Allocate.</strong> Risk profile + horizon set a target asset mix (stocks/bonds/cash/etc).</div>
+      <div><strong>3. Screen.</strong> Within each sleeve, we screen the universe and rank by Sharpe ratio.</div>
+      <div><strong>4. Explain.</strong> Claude writes a plain-English summary of the result.</div>
+    </div>
+  </details>
+
   <section class="card describe-card" id="describe-card">
     <h2>Describe yourself in plain English <span class="ai-badge">AI</span></h2>
     <p class="card-lede">
       Type a sentence or two about your situation. Claude will pre-fill the form
-      below; you can adjust anything before submitting.
+      below; adjust anything before submitting.
     </p>
     <textarea id="describe-input" rows="3"
       placeholder="e.g. I'm 28 and earning well, want to invest $30k for retirement at 65. I'm comfortable with risk but I'd prefer ETFs over individual stocks, and I want to avoid mining."></textarea>
@@ -50,20 +67,27 @@
       <button type="button" class="btn-secondary" id="describe-btn">Auto-fill form</button>
       <span class="muted" id="describe-status"></span>
     </div>
+    <div class="quick-chips" aria-label="Example scenarios">
+      <span class="chip-label">Quick examples:</span>
+      <button type="button" class="chip" data-example="I'm 26, want to invest 25000 for 30 years, aggressive risk, ETFs only, prefer global exposure with AUD hedging.">Young + aggressive</button>
+      <button type="button" class="chip" data-example="Conservative 100000 for 5 years. AU only. No banks. I want at least 4% dividend yield.">Retiree + income</button>
+      <button type="button" class="chip" data-example="Balanced 20000 for 10 years. ETFs only. Interested in cybersecurity and AI themes.">Beginner + ETFs</button>
+      <button type="button" class="chip" data-example="ESG only, 50000 over 15 years, growth profile, exclude tobacco and fossil fuels.">ESG investor</button>
+    </div>
   </section>
 
   <div class="grid">
-    <!-- ---------- Form ---------- -->
+
     <form id="profile-form" class="card form-card">
       <h2>Your profile</h2>
 
       <label class="field">
-        <span class="field-label">Starting capital (AUD)</span>
+        <span class="field-label">Starting capital (AUD) <span class="info" data-tip="The total amount you're allocating across the portfolio.">i</span></span>
         <input type="number" name="capital" min="100" step="100" value="20000" required />
       </label>
 
       <label class="field">
-        <span class="field-label">Risk profile</span>
+        <span class="field-label">Risk profile <span class="info" data-tip="Determines the target mix of growth assets (equities) vs defensive assets (bonds and cash). Higher risk targets more equity.">i</span></span>
         <select name="risk_profile" required>
           <option value="conservative">Conservative &mdash; preserve capital</option>
           <option value="balanced" selected>Balanced &mdash; mix growth + stability</option>
@@ -73,20 +97,18 @@
       </label>
 
       <label class="field">
-        <span class="field-label">Investment horizon (years)</span>
+        <span class="field-label">Investment horizon (years) <span class="info" data-tip="How long you intend to hold. Horizons under 5 years automatically force more bonds/cash because equity drawdowns are likely over short windows.">i</span></span>
         <input type="number" name="horizon_years" min="0" max="60" value="10" required />
-        <span class="field-help">Short horizons (&lt;5y) automatically force more defensive holdings.</span>
       </label>
 
       <label class="field">
-        <span class="field-label">Number of holdings</span>
+        <span class="field-label">Number of holdings <span class="info" data-tip="Total cap on the portfolio. Bigger sleeves get more holdings; smaller sleeves get one.">i</span></span>
         <select name="max_holdings">
           <option value="5">5 &mdash; concentrated</option>
           <option value="8" selected>8 &mdash; balanced (default)</option>
           <option value="12">12 &mdash; diversified</option>
           <option value="18">18 &mdash; very diversified</option>
         </select>
-        <span class="field-help">Larger sleeves get more holdings; smaller sleeves get one.</span>
       </label>
 
       <details class="advanced">
@@ -95,194 +117,191 @@
         <label class="field">
           <span class="field-label">Geographic tilt</span>
           <select name="geo_tilt">
-            <option value="au_only">AU only &mdash; no international exposure</option>
+            <option value="au_only">AU only &mdash; no international</option>
             <option value="au_heavy">AU-heavy &mdash; boost Australian</option>
             <option value="neutral" selected>Neutral &mdash; default mix</option>
-            <option value="global_heavy">Global-heavy &mdash; boost international</option>
+            <option value="global_heavy">Global-heavy &mdash; boost intl</option>
             <option value="global_only">Global only &mdash; no AU equity</option>
           </select>
         </label>
 
         <label class="field">
-          <span class="field-label">Minimum price history (years)</span>
+          <span class="field-label">Min price history (years) <span class="info" data-tip="Excludes recently-listed instruments. Higher = more reliable estimates, fewer choices. 3 years is recommended.">i</span></span>
           <select name="min_history_years">
-            <option value="1">1 year &mdash; include recent listings (noisy)</option>
-            <option value="3" selected>3 years &mdash; recommended default</option>
-            <option value="5">5 years &mdash; only mature instruments</option>
-            <option value="10">10 years &mdash; full cycle only</option>
+            <option value="1">1 year</option>
+            <option value="3" selected>3 years (recommended)</option>
+            <option value="5">5 years</option>
+            <option value="10">10 years</option>
           </select>
-          <span class="field-help">Higher = more reliable estimates, fewer choices.</span>
         </label>
 
-        <label class="field check">
-          <input type="checkbox" name="prefer_income" />
-          <span>Prefer income (tilt to high dividend yield)</span>
-        </label>
-
-        <label class="field check">
-          <input type="checkbox" name="prefer_hedged" />
-          <span>Prefer AUD-hedged international ETFs</span>
-        </label>
-
-        <label class="field check">
-          <input type="checkbox" name="esg_only" />
-          <span>ESG only (sustainability-screened equity)</span>
-        </label>
-
-        <label class="field check">
-          <input type="checkbox" name="etfs_only" />
-          <span>ETFs only (exclude individual stocks)</span>
-        </label>
+        <label class="field check"><input type="checkbox" name="prefer_income" /> <span>Prefer income (high-yield)</span></label>
+        <label class="field check"><input type="checkbox" name="prefer_hedged" /> <span>Prefer AUD-hedged international ETFs</span></label>
+        <label class="field check"><input type="checkbox" name="esg_only" /> <span>ESG-only equity</span></label>
+        <label class="field check"><input type="checkbox" name="etfs_only" /> <span>ETFs only (no individual stocks)</span></label>
 
         <label class="field">
           <span class="field-label">Minimum dividend yield (%)</span>
           <input type="number" name="min_dividend_yield_pct" min="0" max="20" step="0.5" value="0" />
-          <span class="field-help">Excludes instruments yielding below this. 0 = no filter.</span>
         </label>
 
         <label class="field">
           <span class="field-label">Maximum volatility (%)</span>
           <input type="number" name="max_volatility_pct" min="0" max="200" step="5" value="" placeholder="No limit" />
-          <span class="field-help">Excludes instruments with annualised volatility above this. Blank = no limit.</span>
         </label>
 
         <label class="field">
-          <span class="field-label">Max single-position size</span>
+          <span class="field-label">Max single-position size <span class="info" data-tip="No single instrument will exceed this share of the portfolio.">i</span></span>
           <select name="max_position_size">
             <option value="0.05">5%</option>
             <option value="0.10">10%</option>
-            <option value="0.15" selected>15% (default)</option>
+            <option value="0.15" selected>15%</option>
             <option value="0.25">25%</option>
           </select>
         </label>
 
         <fieldset class="field" id="sector-exclusions">
           <legend class="field-label">Exclude sectors</legend>
-          <div id="sector-list" class="sector-grid">
-            <span class="muted">Loading sectors&hellip;</span>
-          </div>
+          <div id="sector-list" class="sector-grid"><span class="muted">Loading sectors&hellip;</span></div>
         </fieldset>
 
         <fieldset class="field" id="sector-includes">
-          <legend class="field-label">Include only these sectors (positive filter)</legend>
-          <div id="sector-include-list" class="sector-grid">
-            <span class="muted">Loading sectors&hellip;</span>
-          </div>
-          <span class="field-help">If you tick any here, individual stocks come only from these sectors. Leave all unchecked to include all sectors.</span>
+          <legend class="field-label">Include only these sectors</legend>
+          <div id="sector-include-list" class="sector-grid"><span class="muted">Loading sectors&hellip;</span></div>
         </fieldset>
 
         <fieldset class="field" id="theme-prefs">
           <legend class="field-label">Preferred themes</legend>
-          <div id="theme-list" class="sector-grid">
-            <span class="muted">Loading themes&hellip;</span>
-          </div>
-          <span class="field-help">Boost specific thematic ETFs in their sleeves.</span>
+          <div id="theme-list" class="sector-grid"><span class="muted">Loading themes&hellip;</span></div>
         </fieldset>
 
         <label class="field">
           <span class="field-label">Exclude specific tickers</span>
           <input type="text" name="exclude_tickers" placeholder="e.g. CBA.AX, BHP.AX" />
-          <span class="field-help">Comma-separated tickers to skip. Add the .AX suffix.</span>
         </label>
       </details>
 
-      <button type="submit" class="btn-primary" id="submit-btn">Build portfolio</button>
-      <p class="muted" id="status-msg"></p>
+      <div class="form-actions">
+        <button type="submit" class="btn-primary" id="submit-btn">Build portfolio</button>
+        <button type="button" class="btn-link" id="reset-btn" title="Reset all inputs to defaults">Reset</button>
+        <button type="button" class="btn-link" id="share-btn" title="Copy a shareable URL of these inputs">Share</button>
+      </div>
+      <p class="muted" id="status-msg" aria-live="polite"></p>
+
+      <div class="recent-card" id="recent-card" hidden>
+        <div class="recent-header">Recent analyses</div>
+        <ul id="recent-list"></ul>
+      </div>
     </form>
 
-    <!-- ---------- Results ---------- -->
-    <section class="results-area" id="results" hidden>
-      <div class="card explain-card" id="explain-card" hidden>
-        <h2>Plain-English summary <span class="ai-badge">AI</span></h2>
-        <div class="explain-body" id="explain-body">Generating&hellip;</div>
-      </div>
-
-      <div class="card">
-        <h2>Candidate portfolio</h2>
-        <div class="metrics-row">
-          <div class="metric">
-            <div class="metric-label">Expected return</div>
-            <div class="metric-value" id="m-return">&mdash;</div>
-            <div class="metric-sub">3-year annualised</div>
+    <section class="results-area" id="results">
+      <!-- Empty state until first submission -->
+      <div class="card empty-state" id="empty-state">
+        <h2>Your portfolio will appear here</h2>
+        <p class="card-lede">Fill out the form and click <em>Build portfolio</em>, or paste a description into the AI box and click <em>Auto-fill form</em>.</p>
+        <div class="empty-mock">
+          <div class="empty-mock-row">
+            <div class="empty-mock-card"></div>
+            <div class="empty-mock-card"></div>
+            <div class="empty-mock-card"></div>
+            <div class="empty-mock-card"></div>
           </div>
-          <div class="metric">
-            <div class="metric-label">Expected volatility</div>
-            <div class="metric-value" id="m-vol">&mdash;</div>
-            <div class="metric-sub">Annualised stdev</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Worst historical drawdown</div>
-            <div class="metric-value" id="m-dd">&mdash;</div>
-            <div class="metric-sub">Peak-to-trough, 5y window</div>
-          </div>
-          <div class="metric">
-            <div class="metric-label">Trailing dividend yield</div>
-            <div class="metric-value" id="m-yield">&mdash;</div>
-            <div class="metric-sub">Last 12 months</div>
-          </div>
+          <div class="empty-mock-large"></div>
         </div>
       </div>
 
-      <div class="card" id="projection-card" hidden>
-        <h2>Projected outcome over your horizon</h2>
-        <p class="card-lede">
-          Lognormal projection assuming the historical return and volatility hold
-          steady. The shaded band is the 80% confidence range &mdash; there's a
-          1-in-10 chance the outcome lands below the low end and a 1-in-10 chance
-          above the high end. Past performance does not predict the future.
-        </p>
-        <div class="projection-row">
-          <div class="proj-metric">
-            <div class="proj-label">Pessimistic (10th percentile)</div>
-            <div class="proj-value" id="p-low">&mdash;</div>
+      <div class="result-content" id="result-content" hidden>
+
+        <div class="card disclaimer-banner">
+          <strong>Educational analysis only.</strong> The output below is a screen, not a recommendation. Your situation may require an AFSL-licensed adviser.
+        </div>
+
+        <div class="card explain-card" id="explain-card" hidden>
+          <h2>Plain-English summary <span class="ai-badge">AI</span></h2>
+          <div class="explain-body" id="explain-body">Generating&hellip;</div>
+        </div>
+
+        <div class="card">
+          <h2>Candidate portfolio</h2>
+          <p class="muted" id="screen-meta"></p>
+          <div class="risk-meter-wrap">
+            <div class="risk-meter-label">Risk level (annualised volatility)</div>
+            <div class="risk-meter">
+              <div class="risk-meter-track">
+                <div class="risk-meter-fill" id="risk-fill"></div>
+              </div>
+              <div class="risk-meter-marks"><span>0%</span><span>10%</span><span>20%</span><span>30%</span><span>40%+</span></div>
+            </div>
           </div>
-          <div class="proj-metric proj-metric-mid">
-            <div class="proj-label">Median expected (50th)</div>
-            <div class="proj-value" id="p-median">&mdash;</div>
-            <div class="proj-sub" id="p-median-cagr">&mdash; per year</div>
-          </div>
-          <div class="proj-metric">
-            <div class="proj-label">Optimistic (90th percentile)</div>
-            <div class="proj-value" id="p-high">&mdash;</div>
+          <div class="metrics-row">
+            <div class="metric"><div class="metric-label">Expected return <span class="info" data-tip="Weighted-average annualised return of the holdings, based on their 5y (preferred) or 3y history.">i</span></div><div class="metric-value" id="m-return">&mdash;</div><div class="metric-sub">Annualised, historical</div></div>
+            <div class="metric"><div class="metric-label">Volatility <span class="info" data-tip="Standard deviation of annual returns. A higher number means bigger swings up and down.">i</span></div><div class="metric-value" id="m-vol">&mdash;</div><div class="metric-sub">Annualised</div></div>
+            <div class="metric"><div class="metric-label">Worst drawdown <span class="info" data-tip="The largest peak-to-trough decline in the underlying holdings over a 5-year window. The pain you would have endured at the worst point.">i</span></div><div class="metric-value" id="m-dd">&mdash;</div><div class="metric-sub">5-year, peak-to-trough</div></div>
+            <div class="metric"><div class="metric-label">Dividend yield <span class="info" data-tip="Trailing 12-month dividends as a % of price. Income-focused users often target 3-5% here.">i</span></div><div class="metric-value" id="m-yield">&mdash;</div><div class="metric-sub">Trailing 12 months</div></div>
           </div>
         </div>
-        <canvas id="proj-chart" height="160" class="proj-chart"></canvas>
-      </div>
 
-      <div class="card">
-        <h2>Asset allocation</h2>
-        <div class="alloc-row">
-          <canvas id="alloc-chart" width="320" height="320"></canvas>
-          <div id="alloc-legend" class="alloc-legend"></div>
+        <div class="card" id="projection-card" hidden>
+          <h2>Projected outcome over your horizon</h2>
+          <p class="card-lede">
+            Lognormal projection assuming the historical return and volatility hold steady. The shaded band is the 80% confidence range. Past performance does not predict the future.
+          </p>
+          <div class="projection-row">
+            <div class="proj-metric"><div class="proj-label">Pessimistic (P10)</div><div class="proj-value" id="p-low">&mdash;</div></div>
+            <div class="proj-metric proj-metric-mid"><div class="proj-label">Median (P50)</div><div class="proj-value" id="p-median">&mdash;</div><div class="proj-sub" id="p-median-cagr">&mdash;</div></div>
+            <div class="proj-metric"><div class="proj-label">Optimistic (P90)</div><div class="proj-value" id="p-high">&mdash;</div></div>
+          </div>
+          <canvas id="proj-chart" height="180" class="proj-chart"></canvas>
+          <p class="card-footer-note muted">
+            Comparison line: a 100% ASX-200 baseline (STW.AX). Useful for "is my portfolio better than just buying the index?"
+          </p>
         </div>
-      </div>
 
-      <div class="card">
-        <h2>Holdings</h2>
-        <p class="card-lede">Click a row to see the historical metrics for that instrument.</p>
-        <div class="table-wrap">
-          <table id="holdings-table">
-            <thead>
-              <tr>
-                <th>Ticker</th>
-                <th>Name</th>
-                <th>Asset class</th>
-                <th class="num">Weight</th>
-                <th class="num">$ AUD</th>
-                <th class="num">Sharpe</th>
-                <th class="num">1y return</th>
-                <th class="num">5y return</th>
-                <th class="num">Yield</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+        <div class="card">
+          <h2>Asset allocation</h2>
+          <div class="alloc-row">
+            <canvas id="alloc-chart" width="320" height="320"></canvas>
+            <div id="alloc-legend" class="alloc-legend"></div>
+          </div>
         </div>
-      </div>
 
-      <div class="card notes-card" id="notes-card" hidden>
-        <h2>Notes</h2>
-        <ul id="notes-list"></ul>
+        <div class="card">
+          <h2>Holdings</h2>
+          <p class="card-lede">Click any row for full historical metrics and the screening rationale.</p>
+          <div class="table-wrap holdings-desktop">
+            <table id="holdings-table">
+              <thead><tr>
+                <th>Ticker</th><th>Name</th><th>Asset class</th>
+                <th class="num">Weight</th><th class="num">$ AUD</th>
+                <th class="num">Sharpe</th><th class="num">1y</th><th class="num">5y</th>
+                <th class="num">Yield</th><th>5y trend</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="holdings-mobile" id="holdings-mobile"></div>
+        </div>
+
+        <div class="card glossary-card">
+          <h2>Understanding the numbers</h2>
+          <dl class="glossary">
+            <dt>Sharpe ratio</dt><dd>Reward per unit of risk. <strong>Above 1.0 is good</strong>; above 2.0 is exceptional. Below 0 means the asset underperformed the cash rate.</dd>
+            <dt>Volatility</dt><dd>How much returns swing year-to-year. ETFs usually 8-25%, individual stocks 20-60%, themes/crypto 50-100%+.</dd>
+            <dt>Maximum drawdown</dt><dd>The worst peak-to-trough fall in the period. Measures the pain of holding through the worst period. Equity portfolios commonly see -30% to -50%.</dd>
+            <dt>Beta</dt><dd>Sensitivity to the broader market. 1.0 = moves with the market; &gt;1 = amplifies market moves; &lt;1 = defensive.</dd>
+            <dt>Inverse-volatility weighting</dt><dd>Within each asset class, less-volatile instruments get larger weights so each contributes equally to the sleeve's risk.</dd>
+          </dl>
+        </div>
+
+        <div class="card notes-card" id="notes-card" hidden>
+          <h2>Notes</h2>
+          <ul id="notes-list"></ul>
+        </div>
+
+        <div class="result-actions">
+          <button type="button" class="btn-secondary" id="print-btn">Save as PDF / Print</button>
+        </div>
+
       </div>
     </section>
   </div>
@@ -291,12 +310,21 @@
 <footer class="site-footer">
   <div class="container">
     <p>
-      Built by Arlen Chijian as an educational portfolio project.
+      Built by <a href="https://github.com/ArlenChijian" target="_blank" rel="noopener">Arlen Chijian</a> as an educational portfolio project.
       Data sourced from Yahoo Finance via <code>yfinance</code>.
-      <strong>Not financial advice</strong> &mdash; no individual circumstances
-      have been considered. Consult an AFSL-licensed adviser before acting.
+      <strong>Not financial advice</strong> &mdash; no individual circumstances have been considered.
+      Consult an AFSL-licensed adviser before acting.
+    </p>
+    <p class="muted small">
+      Open-source &mdash;
+      <a href="https://github.com/ArlenChijian/asx-portfolio-analyser" target="_blank" rel="noopener">source</a> &middot;
+      <a href="https://github.com/ArlenChijian/asx-portfolio-analyser/blob/main/docs/METHODOLOGY.md" target="_blank" rel="noopener">methodology</a> &middot;
+      <a href="https://moneysmart.gov.au/" target="_blank" rel="noopener">ASIC MoneySmart</a>
     </p>
   </div>
 </footer>
+
+<div id="tooltip" class="tooltip" role="tooltip" aria-hidden="true"></div>
+
 </body>
 </html>

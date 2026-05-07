@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import numpy as np
+import pandas as pd
 from pathlib import Path
 from typing import Any, Optional
 
@@ -214,3 +216,77 @@ def explain(req: ExplainRequest) -> ExplainResponse:
         return ExplainResponse(text=None, ai_available=False)
     text = ai_explain.explain(req.profile, req.result)
     return ExplainResponse(text=text, ai_available=True)
+
+
+# --- v0.5 endpoints ----------------------------------------------------
+
+@app.get("/api/data_info")
+def data_info() -> dict:
+    """Snapshot of dataset freshness + size, for the trust-signal UI."""
+    with storage.connect() as conn:
+        last = conn.execute(
+            "SELECT MAX(last_updated) FROM instruments WHERE last_updated IS NOT NULL"
+        ).fetchone()[0]
+        n_inst = conn.execute("SELECT COUNT(*) FROM instruments").fetchone()[0]
+        n_with_5y = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE return_5y IS NOT NULL"
+        ).fetchone()[0]
+        n_with_3y = conn.execute(
+            "SELECT COUNT(*) FROM metrics WHERE return_3y IS NOT NULL"
+        ).fetchone()[0]
+    return {
+        "last_refreshed": last,
+        "instruments_total": n_inst,
+        "instruments_with_3y_history": n_with_3y,
+        "instruments_with_5y_history": n_with_5y,
+    }
+
+
+@app.get("/api/sparkline/{ticker}")
+def sparkline(ticker: str) -> dict:
+    """Return ~100 evenly-sampled close prices for a 5-year sparkline."""
+    ticker = ticker.upper()
+    with storage.connect() as conn:
+        df = pd.read_sql(
+            "SELECT date, adj_close FROM prices WHERE ticker = ? "
+            "ORDER BY date DESC LIMIT 1260",  # ~5 years of trading days
+            conn, params=(ticker,),
+        )
+    if df.empty:
+        return {"ticker": ticker, "values": []}
+    df = df.iloc[::-1].reset_index(drop=True)
+    # Down-sample to ~100 points for compact transport.
+    n = len(df)
+    if n > 100:
+        idx = (np.linspace(0, n - 1, 100)).astype(int)
+        df = df.iloc[idx]
+    return {
+        "ticker": ticker,
+        "values": [round(float(v), 2) for v in df["adj_close"].tolist()],
+    }
+
+
+@app.get("/api/benchmark_projection")
+def benchmark_projection(horizon_years: int, capital: float) -> dict:
+    """Project a 100% ASX-200 (STW.AX) baseline for the given horizon.
+
+    Returns the same lognormal percentile values as the user's portfolio
+    projection so the frontend can overlay them on the same chart.
+    """
+    from portfolio.construct import _projection
+    with storage.connect() as conn:
+        row = conn.execute(
+            "SELECT return_5y, volatility_3y FROM metrics WHERE ticker='STW.AX'"
+        ).fetchone()
+    if row is None or row[0] is None:
+        return {"available": False}
+    proj = _projection(capital, float(row[0]),
+                       float(row[1]) if row[1] is not None else 0.15,
+                       horizon_years)
+    if proj is None:
+        return {"available": False}
+    return {
+        "available": True,
+        "median": proj.median, "low": proj.low, "high": proj.high,
+        "median_return_pct": proj.median_return_pct,
+    }
