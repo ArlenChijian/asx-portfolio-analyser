@@ -1,19 +1,9 @@
-"""FastAPI backend for the ASX Portfolio Analyser.
-
-Endpoints:
-    GET  /                  - Single-page frontend.
-    POST /api/portfolio     - UserProfile JSON -> PortfolioResult.
-    GET  /api/sectors       - Distinct GICS sectors in the universe.
-    GET  /api/health        - Liveness check.
-
-Run locally:
-    uvicorn web.server:app --reload --port 8000
-"""
+"""FastAPI backend for the ASX Portfolio Analyser (v0.4)."""
 from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -22,8 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, field_validator
 
 from pipeline import storage
-from portfolio.profile import GeoTilt, RiskProfile, UserProfile
+from portfolio.profile import GeoTilt, RiskProfile, UserProfile, THEME_TICKERS
 from portfolio.construct import construct
+from ai import client as ai_client
+from ai import parse_profile as ai_parse
+from ai import explain as ai_explain
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +26,7 @@ STATIC_DIR = WEB_ROOT / "static"
 app = FastAPI(
     title="ASX Portfolio Analyser",
     description="Educational analysis tool for ASX equities and ETFs. Not financial advice.",
-    version="0.2.0",
+    version="0.4.0",
 )
 
 app.add_middleware(
@@ -46,23 +39,22 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
-# --- Pydantic request/response models -----------------------------------
-
 class ProfileRequest(BaseModel):
     capital: float = Field(..., gt=0, le=10_000_000)
     risk_profile: str
     horizon_years: int = Field(..., ge=0, le=80)
-
     prefer_income: bool = False
     esg_only: bool = False
     etfs_only: bool = False
     exclude_sectors: list[str] = Field(default_factory=list)
-
+    include_only_sectors: list[str] = Field(default_factory=list)
+    exclude_tickers: list[str] = Field(default_factory=list)
+    preferred_themes: list[str] = Field(default_factory=list)
     geo_tilt: str = "neutral"
     prefer_hedged: bool = False
     min_dividend_yield: float = Field(0.0, ge=0, le=0.20)
     max_volatility: Optional[float] = Field(None, gt=0, le=2.0)
-
+    min_history_years: int = Field(3, ge=1, le=10)
     max_holdings: int = Field(8, ge=3, le=30)
     max_position_size: float = Field(0.15, gt=0, le=1.0)
 
@@ -120,7 +112,24 @@ class PortfolioResponse(BaseModel):
     projection: Optional[ProjectionResponse]
 
 
-# --- Endpoints -----------------------------------------------------------
+class ParseRequest(BaseModel):
+    description: str = Field(..., min_length=1, max_length=2000)
+
+
+class ParseResponse(BaseModel):
+    fields: dict[str, Any]
+    ai_available: bool
+
+
+class ExplainRequest(BaseModel):
+    profile: dict[str, Any]
+    result: dict[str, Any]
+
+
+class ExplainResponse(BaseModel):
+    text: Optional[str]
+    ai_available: bool
+
 
 @app.get("/", include_in_schema=False)
 def index() -> FileResponse:
@@ -129,7 +138,7 @@ def index() -> FileResponse:
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"ok": True}
+    return {"ok": True, "ai_available": ai_client.is_available()}
 
 
 @app.get("/api/sectors")
@@ -139,6 +148,11 @@ def sectors() -> dict:
             "SELECT DISTINCT sector FROM instruments WHERE type='stock' AND sector IS NOT NULL ORDER BY sector"
         ).fetchall()
     return {"sectors": [r[0] for r in rows]}
+
+
+@app.get("/api/themes")
+def themes() -> dict:
+    return {"themes": list(THEME_TICKERS.keys())}
 
 
 @app.post("/api/portfolio", response_model=PortfolioResponse)
@@ -152,10 +166,14 @@ def portfolio(req: ProfileRequest) -> PortfolioResponse:
             esg_only=req.esg_only,
             etfs_only=req.etfs_only,
             exclude_sectors=tuple(req.exclude_sectors),
+            include_only_sectors=tuple(req.include_only_sectors),
+            exclude_tickers=tuple(req.exclude_tickers),
+            preferred_themes=tuple(req.preferred_themes),
             geo_tilt=GeoTilt(req.geo_tilt),
             prefer_hedged=req.prefer_hedged,
             min_dividend_yield=req.min_dividend_yield,
             max_volatility=req.max_volatility,
+            min_history_years=req.min_history_years,
             max_holdings=req.max_holdings,
             max_position_size=req.max_position_size,
         )
@@ -180,3 +198,19 @@ def portfolio(req: ProfileRequest) -> PortfolioResponse:
         projection=(ProjectionResponse(**result.projection.__dict__)
                     if result.projection else None),
     )
+
+
+@app.post("/api/parse", response_model=ParseResponse)
+def parse(req: ParseRequest) -> ParseResponse:
+    if not ai_client.is_available():
+        return ParseResponse(fields={}, ai_available=False)
+    fields = ai_parse.parse(req.description) or {}
+    return ParseResponse(fields=fields, ai_available=True)
+
+
+@app.post("/api/explain", response_model=ExplainResponse)
+def explain(req: ExplainRequest) -> ExplainResponse:
+    if not ai_client.is_available():
+        return ExplainResponse(text=None, ai_available=False)
+    text = ai_explain.explain(req.profile, req.result)
+    return ExplainResponse(text=text, ai_available=True)

@@ -2,13 +2,11 @@
 
 A `UserProfile` captures everything the portfolio constructor needs to
 know about the user. Each `RiskProfile` preset declares a target asset
-allocation (the % of capital that should sit in each asset class), which
-is the dominant determinant of long-run risk-adjusted returns according
-to the asset-allocation literature (Brinson, Hood, Beebower 1986).
+allocation (the % of capital that should sit in each asset class).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 
@@ -21,9 +19,11 @@ class RiskProfile(str, Enum):
 
 
 class GeoTilt(str, Enum):
+    AU_ONLY = "au_only"             # ignore international entirely
     AU_HEAVY = "au_heavy"           # boost AU exposure
-    NEUTRAL = "neutral"             # use defaults
-    GLOBAL_HEAVY = "global_heavy"   # boost international exposure
+    NEUTRAL = "neutral"
+    GLOBAL_HEAVY = "global_heavy"   # boost international
+    GLOBAL_ONLY = "global_only"     # ignore AU equity entirely
 
 
 class AssetClass(str, Enum):
@@ -41,12 +41,28 @@ class AssetClass(str, Enum):
     COMMODITIES = "Commodities"
 
 
-# Asset classes that count as "AU" vs "Global" for the geographic tilt.
 AU_CLASSES = {AssetClass.AU_STOCKS, AssetClass.AU_EQUITY, AssetClass.AU_BONDS,
               AssetClass.AU_PROPERTY}
 GLOBAL_CLASSES = {AssetClass.GLOBAL_EQUITY, AssetClass.US_EQUITY,
                   AssetClass.EM_EQUITY, AssetClass.GLOBAL_BONDS,
                   AssetClass.GLOBAL_PROPERTY, AssetClass.THEMATIC}
+
+
+# Themes that map to specific tickers (used by the preferred_themes field).
+THEME_TICKERS: dict[str, set[str]] = {
+    "cybersecurity":   {"HACK.AX"},
+    "robotics_ai":     {"ROBO.AX"},
+    "esg":             {"ETHI.AX", "FAIR.AX"},
+    "healthcare":      {"DRUG.AX", "IXJ.AX"},
+    "agriculture":     {"FOOD.AX"},
+    "crypto":          {"CRYP.AX"},
+    "income":          {"INCM.AX", "VHY.AX", "IHD.AX", "HBRD.AX"},
+    "small_caps":      {"SMLL.AX"},
+    "banks":           {"MVB.AX", "QFN.AX", "OZF.AX"},
+    "resources":       {"OZR.AX"},
+    "infrastructure":  {"GLIN.AX"},
+    "gold":            {"GOLD.AX", "QAU.AX"},
+}
 
 
 TARGET_ALLOCATIONS: dict[RiskProfile, dict[AssetClass, float]] = {
@@ -106,14 +122,18 @@ class UserProfile:
     esg_only: bool = False
     etfs_only: bool = False
     exclude_sectors: tuple[str, ...] = ()
+    include_only_sectors: tuple[str, ...] = ()  # NEW: positive sector filter
+    exclude_tickers: tuple[str, ...] = ()       # NEW: skip specific tickers
+    preferred_themes: tuple[str, ...] = ()      # NEW: theme keys (see THEME_TICKERS)
     geo_tilt: GeoTilt = GeoTilt.NEUTRAL
     prefer_hedged: bool = False
-    min_dividend_yield: float = 0.0          # exclude instruments below this
-    max_volatility: Optional[float] = None   # exclude instruments above this
+    min_dividend_yield: float = 0.0
+    max_volatility: Optional[float] = None
+    min_history_years: int = 3                  # NEW: data quality filter (default 3y)
 
     # Holdings count + concentration controls.
-    max_holdings: int = 8                    # total cap; default keeps it tight
-    max_position_size: float = 0.15          # cap on any single holding
+    max_holdings: int = 8
+    max_position_size: float = 0.15
 
     def __post_init__(self):
         if self.capital <= 0:
@@ -128,9 +148,11 @@ class UserProfile:
             raise ValueError("min_dividend_yield cannot be negative")
         if self.max_volatility is not None and self.max_volatility <= 0:
             raise ValueError("max_volatility must be positive if set")
+        if not 1 <= self.min_history_years <= 10:
+            raise ValueError("min_history_years must be between 1 and 10")
 
     def target_allocation(self) -> dict[AssetClass, float]:
-        """Asset-class targets, with horizon and geographic-tilt overlays applied."""
+        """Asset-class targets, with horizon and geographic-tilt overlays."""
         base = dict(TARGET_ALLOCATIONS[self.risk_profile])
 
         # Horizon override: short horizons force more defensive holdings.
@@ -152,21 +174,30 @@ class UserProfile:
                     base[ac] *= scale
                 base[AssetClass.CASH] = base.get(AssetClass.CASH, 0) + shortfall
 
-        # Geographic-tilt overlay: scale AU vs Global classes.
-        if self.geo_tilt == GeoTilt.AU_HEAVY:
-            au_factor, global_factor = 1.30, 0.75
-        elif self.geo_tilt == GeoTilt.GLOBAL_HEAVY:
-            au_factor, global_factor = 0.75, 1.30
-        else:
-            au_factor = global_factor = 1.0
-
-        if au_factor != 1.0 or global_factor != 1.0:
+        # Geographic-tilt overlay.
+        if self.geo_tilt == GeoTilt.AU_ONLY:
+            for ac in list(base.keys()):
+                if ac in GLOBAL_CLASSES:
+                    base[ac] = 0
+        elif self.geo_tilt == GeoTilt.GLOBAL_ONLY:
+            for ac in list(base.keys()):
+                if ac in AU_CLASSES and ac != AssetClass.CASH:
+                    base[ac] = 0
+        elif self.geo_tilt == GeoTilt.AU_HEAVY:
             for ac in list(base.keys()):
                 if ac in AU_CLASSES:
-                    base[ac] *= au_factor
+                    base[ac] *= 1.30
                 elif ac in GLOBAL_CLASSES:
-                    base[ac] *= global_factor
+                    base[ac] *= 0.75
+        elif self.geo_tilt == GeoTilt.GLOBAL_HEAVY:
+            for ac in list(base.keys()):
+                if ac in AU_CLASSES:
+                    base[ac] *= 0.75
+                elif ac in GLOBAL_CLASSES:
+                    base[ac] *= 1.30
 
-        # Renormalise to 1.0.
+        # Drop near-zero entries.
+        base = {ac: w for ac, w in base.items() if w > 0.001}
+
         total = sum(base.values())
-        return {ac: w / total for ac, w in base.items() if w > 0}
+        return {ac: w / total for ac, w in base.items()}

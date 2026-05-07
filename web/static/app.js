@@ -37,25 +37,195 @@ function fmtSharpe(x) {
 // --------------- Bootstrapping ---------------
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await loadSectors();
+  await Promise.all([loadSectors(), loadThemes()]);
   document.getElementById("profile-form").addEventListener("submit", onSubmit);
+  document.getElementById("describe-btn").addEventListener("click", onAutoFill);
+  await checkAiAvailable();
 });
 
+async function loadThemes() {
+  const list = document.getElementById("theme-list");
+  try {
+    const r = await fetch(API_BASE + "/api/themes");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    list.innerHTML = "";
+    for (const theme of data.themes) {
+      const id = "theme-" + theme.replace(/\W+/g, "-");
+      const wrapper = document.createElement("label");
+      const display = theme.replace(/_/g, " ");
+      wrapper.innerHTML = `<input type="checkbox" name="preferred_themes" value="${theme}" id="${id}"> <span>${display}</span>`;
+      list.appendChild(wrapper);
+    }
+  } catch (e) {
+    list.innerHTML = `<span class="muted">Could not load themes (${e.message}).</span>`;
+  }
+}
+
+async function checkAiAvailable() {
+  try {
+    const r = await fetch(API_BASE + "/api/health");
+    const data = await r.json();
+    if (!data.ai_available) {
+      const card = document.getElementById("describe-card");
+      card.querySelector(".card-lede").textContent =
+        "AI features are unavailable (ANTHROPIC_API_KEY not set on the server).";
+      document.getElementById("describe-input").disabled = true;
+      document.getElementById("describe-btn").disabled = true;
+    }
+  } catch (e) { /* server might be unreachable; ignore */ }
+}
+
+// --------------- AI: natural-language auto-fill ---------------
+
+async function onAutoFill() {
+  const input = document.getElementById("describe-input");
+  const btn = document.getElementById("describe-btn");
+  const status = document.getElementById("describe-status");
+  const text = (input.value || "").trim();
+  if (!text) {
+    status.textContent = "Type something first.";
+    status.style.color = "var(--danger)";
+    return;
+  }
+  btn.disabled = true;
+  status.textContent = "Asking Claude...";
+  status.style.color = "var(--text-muted)";
+  try {
+    const r = await fetch(API_BASE + "/api/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description: text }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      throw new Error(err.detail || ("HTTP " + r.status));
+    }
+    const data = await r.json();
+    const fields = data.fields || {};
+    const filled = applyFieldsToForm(fields);
+    if (filled.length === 0) {
+      status.textContent = "No fields detected. Try being more specific.";
+      status.style.color = "var(--danger)";
+    } else {
+      status.textContent = "Filled: " + filled.join(", ") + ". Adjust as needed, then submit.";
+      status.style.color = "var(--success)";
+      // If "Advanced options" has any filled fields, expand it.
+      if (filled.some(f => ADVANCED_FIELDS.has(f))) {
+        document.querySelector("details.advanced").open = true;
+      }
+    }
+  } catch (e) {
+    status.textContent = "Error: " + e.message;
+    status.style.color = "var(--danger)";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+const ADVANCED_FIELDS = new Set([
+  "geo_tilt", "prefer_income", "prefer_hedged", "esg_only", "etfs_only",
+  "min_dividend_yield", "max_volatility", "max_position_size", "exclude_sectors",
+]);
+
+function applyFieldsToForm(fields) {
+  const form = document.getElementById("profile-form");
+  const filled = [];
+
+  function setIf(name, transform = v => v) {
+    if (fields[name] === undefined || fields[name] === null) return;
+    const el = form[name];
+    if (el) {
+      el.value = transform(fields[name]);
+      filled.push(name);
+    }
+  }
+
+  setIf("capital");
+  setIf("risk_profile");
+  setIf("horizon_years");
+  setIf("max_holdings");
+  setIf("geo_tilt");
+  // Booleans -> checkboxes
+  for (const k of ["prefer_income", "prefer_hedged", "esg_only", "etfs_only"]) {
+    if (fields[k] !== undefined && form[k]) {
+      form[k].checked = !!fields[k];
+      filled.push(k);
+    }
+  }
+  // Yields/vol stored as fractions in the API; the form takes %
+  if (fields.min_dividend_yield !== undefined && form.min_dividend_yield_pct) {
+    form.min_dividend_yield_pct.value = (fields.min_dividend_yield * 100).toFixed(1);
+    filled.push("min_dividend_yield");
+  }
+  if (fields.max_volatility !== undefined && form.max_volatility_pct) {
+    form.max_volatility_pct.value = (fields.max_volatility * 100).toFixed(0);
+    filled.push("max_volatility");
+  }
+  // Sector exclusions -> checkboxes
+  if (Array.isArray(fields.exclude_sectors) && fields.exclude_sectors.length) {
+    form.querySelectorAll('input[name="exclude_sectors"]').forEach(cb => {
+      cb.checked = fields.exclude_sectors.includes(cb.value);
+    });
+    filled.push("exclude_sectors");
+  }
+  // Sector inclusions
+  if (Array.isArray(fields.include_only_sectors) && fields.include_only_sectors.length) {
+    form.querySelectorAll('input[name="include_only_sectors"]').forEach(cb => {
+      cb.checked = fields.include_only_sectors.includes(cb.value);
+    });
+    filled.push("include_only_sectors");
+  }
+  // Preferred themes
+  if (Array.isArray(fields.preferred_themes) && fields.preferred_themes.length) {
+    form.querySelectorAll('input[name="preferred_themes"]').forEach(cb => {
+      cb.checked = fields.preferred_themes.includes(cb.value);
+    });
+    filled.push("preferred_themes");
+  }
+  // Excluded specific tickers
+  if (Array.isArray(fields.exclude_tickers) && fields.exclude_tickers.length) {
+    if (form.exclude_tickers) {
+      form.exclude_tickers.value = fields.exclude_tickers.join(", ");
+      filled.push("exclude_tickers");
+    }
+  }
+  // Min history years
+  if (fields.min_history_years !== undefined && form.min_history_years) {
+    form.min_history_years.value = fields.min_history_years;
+    filled.push("min_history_years");
+  }
+  // Max position size
+  if (fields.max_position_size !== undefined && form.max_position_size) {
+    form.max_position_size.value = fields.max_position_size;
+    filled.push("max_position_size");
+  }
+  return filled;
+}
+
 async function loadSectors() {
-  const list = document.getElementById("sector-list");
+  const excList = document.getElementById("sector-list");
+  const incList = document.getElementById("sector-include-list");
   try {
     const r = await fetch(API_BASE + "/api/sectors");
     if (!r.ok) throw new Error("HTTP " + r.status);
     const data = await r.json();
-    list.innerHTML = "";
+    excList.innerHTML = "";
+    incList.innerHTML = "";
     for (const sector of data.sectors) {
-      const id = "sec-" + sector.replace(/\W+/g, "-").toLowerCase();
-      const wrapper = document.createElement("label");
-      wrapper.innerHTML = `<input type="checkbox" name="exclude_sectors" value="${sector}" id="${id}"> <span>${sector}</span>`;
-      list.appendChild(wrapper);
+      const safe = sector.replace(/\W+/g, "-").toLowerCase();
+
+      const exc = document.createElement("label");
+      exc.innerHTML = `<input type="checkbox" name="exclude_sectors" value="${sector}" id="sec-exc-${safe}"> <span>${sector}</span>`;
+      excList.appendChild(exc);
+
+      const inc = document.createElement("label");
+      inc.innerHTML = `<input type="checkbox" name="include_only_sectors" value="${sector}" id="sec-inc-${safe}"> <span>${sector}</span>`;
+      incList.appendChild(inc);
     }
   } catch (e) {
-    list.innerHTML = `<span class="muted">Could not load sectors (${e.message}). Server may not be running yet.</span>`;
+    excList.innerHTML = `<span class="muted">Could not load sectors (${e.message}). Server may not be running yet.</span>`;
+    incList.innerHTML = `<span class="muted">Could not load sectors (${e.message}).</span>`;
   }
 }
 
@@ -77,6 +247,13 @@ async function onSubmit(ev) {
   const maxVolPctRaw = form.max_volatility_pct.value;
   const maxVol = maxVolPctRaw === "" ? null : parseFloat(maxVolPctRaw) / 100;
 
+  // Parse the comma-separated tickers field, normalising to .AX-suffixed uppercase.
+  const rawTickers = (form.exclude_tickers && form.exclude_tickers.value) || "";
+  const excludeTickers = rawTickers.split(/[,\s]+/)
+    .map(s => s.trim().toUpperCase())
+    .filter(Boolean)
+    .map(s => s.endsWith(".AX") ? s : s + ".AX");
+
   const data = {
     capital: parseFloat(form.capital.value),
     risk_profile: form.risk_profile.value,
@@ -88,10 +265,16 @@ async function onSubmit(ev) {
     prefer_hedged: form.prefer_hedged.checked,
     min_dividend_yield: (minYieldPct || 0) / 100,
     max_volatility: maxVol,
+    min_history_years: parseInt(form.min_history_years.value, 10),
     max_holdings: parseInt(form.max_holdings.value, 10),
     max_position_size: parseFloat(form.max_position_size.value),
     exclude_sectors: Array.from(form.querySelectorAll('input[name="exclude_sectors"]:checked'))
                           .map(c => c.value),
+    include_only_sectors: Array.from(form.querySelectorAll('input[name="include_only_sectors"]:checked'))
+                          .map(c => c.value),
+    preferred_themes: Array.from(form.querySelectorAll('input[name="preferred_themes"]:checked'))
+                          .map(c => c.value),
+    exclude_tickers: excludeTickers,
   };
 
   try {
@@ -133,6 +316,59 @@ function renderResult(r) {
   renderNotes(r.notes);
 
   document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+
+  // Fire AI explanation in the background; results render before it completes.
+  requestExplanation(r);
+}
+
+async function requestExplanation(result) {
+  const card = document.getElementById("explain-card");
+  const body = document.getElementById("explain-body");
+  card.hidden = false;
+  body.textContent = "Generating...";
+
+  // Reconstruct the user-side profile from the form so the explanation can
+  // reference what the user typed (not just the result).
+  const form = document.getElementById("profile-form");
+  const profile = {
+    capital: parseFloat(form.capital.value),
+    risk_profile: form.risk_profile.value,
+    horizon_years: parseInt(form.horizon_years.value, 10),
+    max_holdings: parseInt(form.max_holdings.value, 10),
+    prefer_income: form.prefer_income.checked,
+    prefer_hedged: form.prefer_hedged.checked,
+    esg_only: form.esg_only.checked,
+    etfs_only: form.etfs_only.checked,
+    geo_tilt: form.geo_tilt.value,
+  };
+
+  try {
+    const r = await fetch(API_BASE + "/api/explain", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile, result }),
+    });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const data = await r.json();
+    if (!data.ai_available) {
+      card.hidden = true;
+      return;
+    }
+    if (!data.text) {
+      body.textContent = "Explanation could not be generated.";
+      return;
+    }
+    // Render newline-separated paragraphs as <p> elements.
+    body.innerHTML = "";
+    const paras = data.text.split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+    for (const p of paras) {
+      const el = document.createElement("p");
+      el.textContent = p;
+      body.appendChild(el);
+    }
+  } catch (e) {
+    body.textContent = "Could not generate explanation: " + e.message;
+  }
 }
 
 function renderProjection(proj, capital) {

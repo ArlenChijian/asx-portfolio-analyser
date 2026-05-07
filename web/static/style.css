@@ -370,3 +370,88 @@ tbody tr:last-child td { border-bottom: none; }
   margin-top: 8px;
   color: var(--text-muted);
 }
+
+/* ---------- v0.3 additions: AI features ---------- */
+.describe-card {
+  margin-top: 0;
+  margin-bottom: 24px;
+  background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg) 100%);
+  border-color: var(--accent);
+}
+.describe-card h2 { display: flex; align-items: center; gap: 8px; }
+.describe-card textarea {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  resize: vertical;
+  min-height: 70px;
+}
+.describe-card textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.describe-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px;
+}
+.btn-secondary {
+  background: var(--bg);
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s;
+}
+.btn-secondary:hover { background: var(--accent-soft); }
+.btn-secondary:disabled {
+  background: var(--bg-soft); color: var(--text-muted);
+  border-color: var(--border-strong); cursor: not-allowed;
+}
+.ai-badge {
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: .04em;
+}
+
+.explain-card .explain-body {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+.explain-card .explain-body p { margin: 0 0 12px; }
+.explain-card .explain-body p:last-child { margin-bottom: 0; }
+
+/* ---------- v0.4 additions ---------- */
+.field input[type=text] {
+  width: 100%;
+  padding: 9px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+.field input[type=text]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+#sector-includes .sector-grid label,
+#theme-prefs .sector-grid label {
+  font-size: 12.5px;
+}

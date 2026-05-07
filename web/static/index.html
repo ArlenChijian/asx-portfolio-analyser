@@ -37,6 +37,21 @@
     </p>
   </section>
 
+  <!-- ---------- AI: natural-language input ---------- -->
+  <section class="card describe-card" id="describe-card">
+    <h2>Describe yourself in plain English <span class="ai-badge">AI</span></h2>
+    <p class="card-lede">
+      Type a sentence or two about your situation. Claude will pre-fill the form
+      below; you can adjust anything before submitting.
+    </p>
+    <textarea id="describe-input" rows="3"
+      placeholder="e.g. I'm 28 and earning well, want to invest $30k for retirement at 65. I'm comfortable with risk but I'd prefer ETFs over individual stocks, and I want to avoid mining."></textarea>
+    <div class="describe-row">
+      <button type="button" class="btn-secondary" id="describe-btn">Auto-fill form</button>
+      <span class="muted" id="describe-status"></span>
+    </div>
+  </section>
+
   <div class="grid">
     <!-- ---------- Form ---------- -->
     <form id="profile-form" class="card form-card">
@@ -80,10 +95,23 @@
         <label class="field">
           <span class="field-label">Geographic tilt</span>
           <select name="geo_tilt">
-            <option value="au_heavy">AU-heavy &mdash; boost Australian exposure</option>
+            <option value="au_only">AU only &mdash; no international exposure</option>
+            <option value="au_heavy">AU-heavy &mdash; boost Australian</option>
             <option value="neutral" selected>Neutral &mdash; default mix</option>
             <option value="global_heavy">Global-heavy &mdash; boost international</option>
+            <option value="global_only">Global only &mdash; no AU equity</option>
           </select>
+        </label>
+
+        <label class="field">
+          <span class="field-label">Minimum price history (years)</span>
+          <select name="min_history_years">
+            <option value="1">1 year &mdash; include recent listings (noisy)</option>
+            <option value="3" selected>3 years &mdash; recommended default</option>
+            <option value="5">5 years &mdash; only mature instruments</option>
+            <option value="10">10 years &mdash; full cycle only</option>
+          </select>
+          <span class="field-help">Higher = more reliable estimates, fewer choices.</span>
         </label>
 
         <label class="field check">
@@ -134,6 +162,28 @@
             <span class="muted">Loading sectors&hellip;</span>
           </div>
         </fieldset>
+
+        <fieldset class="field" id="sector-includes">
+          <legend class="field-label">Include only these sectors (positive filter)</legend>
+          <div id="sector-include-list" class="sector-grid">
+            <span class="muted">Loading sectors&hellip;</span>
+          </div>
+          <span class="field-help">If you tick any here, individual stocks come only from these sectors. Leave all unchecked to include all sectors.</span>
+        </fieldset>
+
+        <fieldset class="field" id="theme-prefs">
+          <legend class="field-label">Preferred themes</legend>
+          <div id="theme-list" class="sector-grid">
+            <span class="muted">Loading themes&hellip;</span>
+          </div>
+          <span class="field-help">Boost specific thematic ETFs in their sleeves.</span>
+        </fieldset>
+
+        <label class="field">
+          <span class="field-label">Exclude specific tickers</span>
+          <input type="text" name="exclude_tickers" placeholder="e.g. CBA.AX, BHP.AX" />
+          <span class="field-help">Comma-separated tickers to skip. Add the .AX suffix.</span>
+        </label>
       </details>
 
       <button type="submit" class="btn-primary" id="submit-btn">Build portfolio</button>
@@ -142,6 +192,11 @@
 
     <!-- ---------- Results ---------- -->
     <section class="results-area" id="results" hidden>
+      <div class="card explain-card" id="explain-card" hidden>
+        <h2>Plain-English summary <span class="ai-badge">AI</span></h2>
+        <div class="explain-body" id="explain-body">Generating&hellip;</div>
+      </div>
+
       <div class="card">
         <h2>Candidate portfolio</h2>
         <div class="metrics-row">
