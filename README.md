@@ -2,6 +2,10 @@
 
 > An educational portfolio-analysis tool for ASX-listed equities and ETFs. Users describe their starting capital, risk tolerance, investment horizon and preferences in plain English; the tool returns a candidate portfolio with transparent reasoning, historical risk/return characteristics, AI-generated explanations, and a horizon-based projection.
 
+**🌐 Live demo: [asx-portfolio-analyser.onrender.com](https://asx-portfolio-analyser.onrender.com)** &nbsp;·&nbsp; the first request after a quiet period takes ~15 seconds (free-tier cold start).
+
+![Form and result](docs/screenshots/01-form.png)
+
 > [!WARNING]
 > **Educational analysis only.** This project does **not** constitute personal financial advice under the Australian *Corporations Act 2001*. No individual circumstances have been considered. Anyone making investment decisions should consult an AFSL-licensed adviser and consult [ASIC's MoneySmart](https://moneysmart.gov.au/).
 
@@ -134,6 +138,16 @@ uvicorn web.server:app --reload --port 8000
 │   └── METHODOLOGY.md      Deep dive on every design decision
 └── requirements.txt
 ```
+
+## Screenshots
+
+The asset allocation, holdings table with sparklines and asset-class colour coding, and detail-on-click rationale:
+
+![Holdings and allocation](docs/screenshots/02-holdings.png)
+
+Mobile layout — sticky header, dataset-freshness pill, AI quick-fill chips:
+
+<img src="docs/screenshots/03-mobile.png" width="320" alt="Mobile view" />
 
 ## How it works (in 60 seconds)
 
