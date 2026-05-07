@@ -19,7 +19,7 @@ data/processed/
 *.csv
 *.sqlite
 *.db
-!data/market.sqlite        # allow the production database file
+!data/market.sqlite
 !data/.gitkeep
 
 # Secrets and config
