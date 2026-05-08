@@ -342,3 +342,33 @@ tbody tr:hover { background: var(--bg-soft); }
   .hero { padding-top: 0; }
   .container { max-width: 100%; padding: 0; }
 }
+
+/* ---------- v0.6: Macro strip + fundamentals row ---------- */
+.macro-strip {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin: 12px 0 0;
+}
+.macro-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.macro-pill strong { color: var(--text); font-weight: 600; }
+.macro-pill .macro-key { font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
+
+.fundamentals-row {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  font-size: 11px;
+}
+@media (max-width: 700px) { .fundamentals-row { grid-template-columns: repeat(2, 1fr); } }
+.fund-cell strong { display: block; font-size: 12px; color: var(--text); }
+.fund-label { color: var(--text-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }

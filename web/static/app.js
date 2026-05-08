@@ -65,7 +65,7 @@ function fmtDate(iso) {
 // --------------- Bootstrapping ---------------
 
 document.addEventListener("DOMContentLoaded", async () => {
-  await Promise.all([loadSectors(), loadThemes(), loadDataInfo()]);
+  await Promise.all([loadSectors(), loadThemes(), loadDataInfo(), loadMacro()]);
   document.getElementById("profile-form").addEventListener("submit", onSubmit);
   document.getElementById("describe-btn").addEventListener("click", onAutoFill);
   document.getElementById("reset-btn").addEventListener("click", onReset);
@@ -127,6 +127,26 @@ async function loadDataInfo() {
   } catch (e) {
     pill.textContent = "Dataset info unavailable";
   }
+}
+
+async function loadMacro() {
+  const strip = document.getElementById("macro-strip");
+  if (!strip) return;
+  try {
+    const r = await fetch(API_BASE + "/api/macro");
+    if (!r.ok) return;
+    const d = await r.json();
+    const cards = [];
+    if (d.rba_cash_rate)  cards.push({label: "RBA cash", value: (d.rba_cash_rate.value*100).toFixed(2)+"%"});
+    if (d.audusd)         cards.push({label: "AUD/USD", value: d.audusd.value.toFixed(4)});
+    if (d.asx200)         cards.push({label: "ASX 200", value: Math.round(d.asx200.value).toLocaleString()});
+    if (d.us10y)          cards.push({label: "US 10y", value: (d.us10y.value*100).toFixed(2)+"%"});
+    if (d.vix)            cards.push({label: "VIX", value: d.vix.value.toFixed(1)});
+    if (d.gold_usd)       cards.push({label: "Gold $/oz", value: "$" + Math.round(d.gold_usd.value).toLocaleString()});
+    strip.innerHTML = cards.map(c =>
+      `<span class="macro-pill"><span class="macro-key">${c.label}</span> <strong>${c.value}</strong></span>`
+    ).join("");
+  } catch (e) { /* macro is optional */ }
 }
 
 async function checkAiAvailable() {
@@ -658,8 +678,38 @@ function toggleDetail(tr, h) {
         <div class="detail-cell"><strong>Sleeve</strong>${h.asset_class}</div>
       </div>
       <div class="rationale-row">${h.rationale}</div>
+      <div class="fundamentals-row" data-ticker="${h.ticker}"><span class="muted">Loading fundamentals&hellip;</span></div>
     </td>`;
   tr.parentNode.insertBefore(detail, tr.nextSibling);
+  fetchAndRenderFundamentals(h.ticker, detail.querySelector(".fundamentals-row"));
+}
+
+async function fetchAndRenderFundamentals(ticker, target) {
+  if (!target) return;
+  try {
+    const r = await fetch(API_BASE + "/api/fundamentals/" + encodeURIComponent(ticker));
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const d = await r.json();
+    if (!d.available) {
+      target.innerHTML = `<span class="muted">No fundamentals available for this instrument.</span>`;
+      return;
+    }
+    const cells = [
+      { label: "Trailing P/E",  value: d.trailing_pe != null ? d.trailing_pe.toFixed(1) : "–" },
+      { label: "Forward P/E",   value: d.forward_pe != null ? d.forward_pe.toFixed(1) : "–" },
+      { label: "Price / Book",  value: d.price_to_book != null ? d.price_to_book.toFixed(2) : "–" },
+      { label: "Return on Equity", value: d.return_on_equity != null ? (d.return_on_equity * 100).toFixed(1)+"%" : "–" },
+      { label: "Profit margin", value: d.profit_margin != null ? (d.profit_margin * 100).toFixed(1)+"%" : "–" },
+      { label: "Debt / Equity", value: d.debt_to_equity != null ? d.debt_to_equity.toFixed(2) : "–" },
+      { label: "Forward yield", value: d.forward_dividend_yield != null ? (d.forward_dividend_yield * 100).toFixed(2)+"%" : "–" },
+      { label: "Payout ratio",  value: d.payout_ratio != null ? (d.payout_ratio * 100).toFixed(0)+"%" : "–" },
+    ];
+    target.innerHTML = cells.map(c => `
+      <div class="fund-cell"><span class="fund-label">${c.label}</span><strong>${c.value}</strong></div>
+    `).join("");
+  } catch (e) {
+    target.innerHTML = `<span class="muted">Fundamentals unavailable.</span>`;
+  }
 }
 
 async function fetchAndDrawSparkline(ticker, canvasId, color) {

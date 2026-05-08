@@ -1,15 +1,4 @@
-"""SQLite storage layer for the pipeline.
-
-We use a single SQLite file (`data/market.sqlite`) with three tables:
-
-    instruments  - one row per ticker, with metadata (name, sector, type, ...)
-    prices       - daily OHLCV rows, keyed on (ticker, date)
-    dividends    - dividend payments, keyed on (ticker, date)
-
-The layer is intentionally thin: pandas DataFrames in, pandas DataFrames
-out. We don't use an ORM because the schema is small and the operations
-are bulk reads/writes that pandas handles natively.
-"""
+"""SQLite storage layer for the pipeline (v0.6 - adds fundamentals)."""
 from __future__ import annotations
 
 import logging
@@ -30,7 +19,6 @@ DB_PATH = Path(os.environ.get("ASX_DB_PATH",
 
 @contextmanager
 def connect():
-    """Context-managed SQLite connection. Auto-creates the data folder."""
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     try:
@@ -41,7 +29,6 @@ def connect():
 
 
 def init_schema() -> None:
-    """Create tables and indices if they don't yet exist."""
     with connect() as conn:
         conn.executescript(
             """
@@ -77,18 +64,38 @@ def init_schema() -> None:
                 amount REAL,
                 PRIMARY KEY (ticker, date)
             );
+
+            CREATE TABLE IF NOT EXISTS fundamentals (
+                ticker            TEXT PRIMARY KEY,
+                trailing_pe       REAL,
+                forward_pe        REAL,
+                price_to_book     REAL,
+                return_on_equity  REAL,
+                profit_margin     REAL,
+                debt_to_equity    REAL,
+                forward_dividend_yield REAL,
+                payout_ratio      REAL,
+                eps_trailing      REAL,
+                revenue_growth    REAL,
+                last_updated      TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS macro (
+                key           TEXT PRIMARY KEY,
+                value         REAL,
+                description   TEXT,
+                last_updated  TEXT
+            );
             """
         )
     log.info("Schema initialised at %s", DB_PATH)
 
 
 def _na_to_none(df: pd.DataFrame) -> pd.DataFrame:
-    """Convert pd.NA / NaN / NaT to Python None so sqlite3 can bind values."""
     return df.astype(object).where(df.notna(), None)
 
 
 def upsert_instruments(df: pd.DataFrame) -> None:
-    """Insert or update instrument metadata rows."""
     if df.empty:
         return
     cols = ["ticker", "name", "sector", "industry", "type",
@@ -105,8 +112,40 @@ def upsert_instruments(df: pd.DataFrame) -> None:
     log.info("Upserted %d instruments.", len(rows))
 
 
+def upsert_fundamentals(df: pd.DataFrame) -> None:
+    if df.empty:
+        return
+    cols = ["ticker", "trailing_pe", "forward_pe", "price_to_book",
+            "return_on_equity", "profit_margin", "debt_to_equity",
+            "forward_dividend_yield", "payout_ratio",
+            "eps_trailing", "revenue_growth", "last_updated"]
+    df = df.reindex(columns=cols)
+    df = _na_to_none(df)
+    rows = [tuple(r) for r in df.itertuples(index=False, name=None)]
+    placeholders = ",".join("?" * len(cols))
+    with connect() as conn:
+        conn.executemany(
+            f"INSERT OR REPLACE INTO fundamentals ({','.join(cols)}) VALUES ({placeholders})",
+            rows,
+        )
+    log.info("Upserted %d fundamentals rows.", len(rows))
+
+
+def upsert_macro(rows: list[dict]) -> None:
+    if not rows:
+        return
+    df = pd.DataFrame(rows).reindex(columns=["key", "value", "description", "last_updated"])
+    df = _na_to_none(df)
+    tup = [tuple(r) for r in df.itertuples(index=False, name=None)]
+    with connect() as conn:
+        conn.executemany(
+            "INSERT OR REPLACE INTO macro (key, value, description, last_updated) VALUES (?, ?, ?, ?)",
+            tup,
+        )
+    log.info("Upserted %d macro rows.", len(tup))
+
+
 def replace_prices(ticker: str, prices: pd.DataFrame) -> None:
-    """Replace all price rows for a ticker. Idempotent."""
     if prices is None or prices.empty:
         return
     df = prices.copy()
@@ -122,7 +161,6 @@ def replace_prices(ticker: str, prices: pd.DataFrame) -> None:
 
 
 def replace_dividends(ticker: str, dividends: pd.Series) -> None:
-    """Replace all dividend rows for a ticker."""
     if dividends is None or len(dividends) == 0:
         return
     df = pd.DataFrame({
@@ -150,3 +188,9 @@ def load_prices(ticker: str | None = None) -> pd.DataFrame:
     with connect() as conn:
         df = pd.read_sql(query, conn, params=params, parse_dates=["date"])
     return df
+
+
+def load_macro() -> dict:
+    with connect() as conn:
+        rows = conn.execute("SELECT key, value, description, last_updated FROM macro").fetchall()
+    return {r[0]: {"value": r[1], "description": r[2], "last_updated": r[3]} for r in rows}

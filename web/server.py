@@ -157,6 +157,31 @@ def themes() -> dict:
     return {"themes": list(THEME_TICKERS.keys())}
 
 
+@app.get("/api/macro")
+def macro() -> dict:
+    """Current macro context (RBA cash rate, AUD/USD, ASX 200, VIX, gold, US 10y)."""
+    return storage.load_macro()
+
+
+@app.get("/api/fundamentals/{ticker}")
+def fundamentals(ticker: str) -> dict:
+    """Per-instrument fundamentals (P/E, P/B, ROE, etc.)."""
+    ticker = ticker.upper()
+    with storage.connect() as conn:
+        row = conn.execute(
+            "SELECT trailing_pe, forward_pe, price_to_book, return_on_equity, "
+            "profit_margin, debt_to_equity, forward_dividend_yield, payout_ratio, "
+            "eps_trailing, revenue_growth, last_updated "
+            "FROM fundamentals WHERE ticker = ?", (ticker,)
+        ).fetchone()
+    if row is None:
+        return {"ticker": ticker, "available": False}
+    keys = ["trailing_pe", "forward_pe", "price_to_book", "return_on_equity",
+            "profit_margin", "debt_to_equity", "forward_dividend_yield",
+            "payout_ratio", "eps_trailing", "revenue_growth", "last_updated"]
+    return {"ticker": ticker, "available": True, **dict(zip(keys, row))}
+
+
 @app.post("/api/portfolio", response_model=PortfolioResponse)
 def portfolio(req: ProfileRequest) -> PortfolioResponse:
     try:
