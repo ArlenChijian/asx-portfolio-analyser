@@ -18,7 +18,7 @@
       <span class="brand-name">ASX Portfolio Analyser</span>
     </div>
     <nav class="header-nav">
-      <a href="#how-it-works" class="nav-link">How it works</a>
+      <a href="#how-it-works" class="nav-link">How It Works</a>
       <a href="https://github.com/ArlenChijian/asx-portfolio-analyser/blob/main/docs/METHODOLOGY.md" class="nav-link" target="_blank" rel="noopener">Methodology</a>
       <a href="https://github.com/ArlenChijian/asx-portfolio-analyser" class="nav-link" target="_blank" rel="noopener">GitHub</a>
     </nav>
@@ -28,7 +28,7 @@
 <main class="container">
 
   <section class="hero">
-    <h1>A transparent portfolio screen for the ASX.</h1>
+    <h1>A Transparent Portfolio Screen For The ASX.</h1>
     <p class="lede">
       Tell us your capital, risk tolerance, and horizon. We return a candidate
       portfolio of ASX-listed equities and ETFs with full reasoning, historical
@@ -47,7 +47,7 @@
   </section>
 
   <details class="how-card" id="how-it-works">
-    <summary>How it works <span class="muted">(30 second read)</span></summary>
+    <summary>How It Works <span class="muted">(30 second read)</span></summary>
     <div class="how-grid">
       <div><strong>1. Profile.</strong> Tell us about you — in plain English or via the form.</div>
       <div><strong>2. Allocate.</strong> Risk profile + horizon set a target asset mix (stocks/bonds/cash/etc).</div>
@@ -57,7 +57,7 @@
   </details>
 
   <section class="card describe-card" id="describe-card">
-    <h2>Describe yourself in plain English <span class="ai-badge">AI</span></h2>
+    <h2>Describe Yourself In Plain English <span class="ai-badge">AI</span></h2>
     <p class="card-lede">
       Type a sentence or two about your situation. Claude will pre-fill the form
       below; adjust anything before submitting.
@@ -65,30 +65,30 @@
     <textarea id="describe-input" rows="3"
       placeholder="e.g. I'm 28 and earning well, want to invest $30k for retirement at 65. I'm comfortable with risk but I'd prefer ETFs over individual stocks, and I want to avoid mining."></textarea>
     <div class="describe-row">
-      <button type="button" class="btn-secondary" id="describe-btn">Auto-fill form</button>
+      <button type="button" class="btn-secondary" id="describe-btn">Auto-Fill Form</button>
       <span class="muted" id="describe-status"></span>
     </div>
     <div class="quick-chips" aria-label="Example scenarios">
-      <span class="chip-label">Quick examples:</span>
-      <button type="button" class="chip" data-example="I'm 26, want to invest 25000 for 30 years, aggressive risk, ETFs only, prefer global exposure with AUD hedging.">Young + aggressive</button>
-      <button type="button" class="chip" data-example="Conservative 100000 for 5 years. AU only. No banks. I want at least 4% dividend yield.">Retiree + income</button>
+      <span class="chip-label">Quick Examples</span>
+      <button type="button" class="chip" data-example="I'm 26, want to invest 25000 for 30 years, aggressive risk, ETFs only, prefer global exposure with AUD hedging.">Young + Aggressive</button>
+      <button type="button" class="chip" data-example="Conservative 100000 for 5 years. AU only. No banks. I want at least 4% dividend yield.">Retiree + Income</button>
       <button type="button" class="chip" data-example="Balanced 20000 for 10 years. ETFs only. Interested in cybersecurity and AI themes.">Beginner + ETFs</button>
-      <button type="button" class="chip" data-example="ESG only, 50000 over 15 years, growth profile, exclude tobacco and fossil fuels.">ESG investor</button>
+      <button type="button" class="chip" data-example="ESG only, 50000 over 15 years, growth profile, exclude tobacco and fossil fuels.">ESG Investor</button>
     </div>
   </section>
 
   <div class="grid">
 
     <form id="profile-form" class="card form-card">
-      <h2>Your profile</h2>
+      <h2>Your Profile</h2>
 
       <label class="field">
-        <span class="field-label">Starting capital (AUD) <span class="info" data-tip="The total amount you're allocating across the portfolio.">i</span></span>
+        <span class="field-label">Starting Capital (AUD) <span class="info" data-tip="The total amount you're allocating across the portfolio.">i</span></span>
         <input type="number" name="capital" min="100" step="100" value="20000" required />
       </label>
 
       <label class="field">
-        <span class="field-label">Risk profile <span class="info" data-tip="Determines the target mix of growth assets (equities) vs defensive assets (bonds and cash). Higher risk targets more equity.">i</span></span>
+        <span class="field-label">Risk Profile <span class="info" data-tip="Determines the target mix of growth assets (equities) vs defensive assets (bonds and cash). Higher risk targets more equity.">i</span></span>
         <select name="risk_profile" required>
           <option value="conservative">Conservative &mdash; preserve capital</option>
           <option value="balanced" selected>Balanced &mdash; mix growth + stability</option>
@@ -98,12 +98,12 @@
       </label>
 
       <label class="field">
-        <span class="field-label">Investment horizon (years) <span class="info" data-tip="How long you intend to hold. Horizons under 5 years automatically force more bonds/cash because equity drawdowns are likely over short windows.">i</span></span>
+        <span class="field-label">Investment Horizon (Years) <span class="info" data-tip="How long you intend to hold. Horizons under 5 years automatically force more bonds/cash because equity drawdowns are likely over short windows.">i</span></span>
         <input type="number" name="horizon_years" min="0" max="60" value="10" required />
       </label>
 
       <label class="field">
-        <span class="field-label">Number of holdings <span class="info" data-tip="Total cap on the portfolio. Bigger sleeves get more holdings; smaller sleeves get one.">i</span></span>
+        <span class="field-label">Number Of Holdings <span class="info" data-tip="Total cap on the portfolio. Bigger sleeves get more holdings; smaller sleeves get one.">i</span></span>
         <select name="max_holdings">
           <option value="5">5 &mdash; concentrated</option>
           <option value="8" selected>8 &mdash; balanced (default)</option>
@@ -113,10 +113,10 @@
       </label>
 
       <details class="advanced">
-        <summary>Advanced options</summary>
+        <summary>Advanced Options</summary>
 
         <label class="field">
-          <span class="field-label">Geographic tilt</span>
+          <span class="field-label">Geographic Tilt</span>
           <select name="geo_tilt">
             <option value="au_only">AU only &mdash; no international</option>
             <option value="au_heavy">AU-heavy &mdash; boost Australian</option>
@@ -127,7 +127,7 @@
         </label>
 
         <label class="field">
-          <span class="field-label">Min price history (years) <span class="info" data-tip="Excludes recently-listed instruments. Higher = more reliable estimates, fewer choices. 3 years is recommended.">i</span></span>
+          <span class="field-label">Min Price History (Years) <span class="info" data-tip="Excludes recently-listed instruments. Higher = more reliable estimates, fewer choices. 3 years is recommended.">i</span></span>
           <select name="min_history_years">
             <option value="1">1 year</option>
             <option value="3" selected>3 years (recommended)</option>
@@ -136,23 +136,23 @@
           </select>
         </label>
 
-        <label class="field check"><input type="checkbox" name="prefer_income" /> <span>Prefer income (high-yield)</span></label>
-        <label class="field check"><input type="checkbox" name="prefer_hedged" /> <span>Prefer AUD-hedged international ETFs</span></label>
-        <label class="field check"><input type="checkbox" name="esg_only" /> <span>ESG-only equity</span></label>
-        <label class="field check"><input type="checkbox" name="etfs_only" /> <span>ETFs only (no individual stocks)</span></label>
+        <label class="field check"><input type="checkbox" name="prefer_income" /> <span>Prefer Income (High-Yield)</span></label>
+        <label class="field check"><input type="checkbox" name="prefer_hedged" /> <span>Prefer AUD-Hedged International ETFs</span></label>
+        <label class="field check"><input type="checkbox" name="esg_only" /> <span>ESG-Only Equity</span></label>
+        <label class="field check"><input type="checkbox" name="etfs_only" /> <span>ETFs Only (No Individual Stocks)</span></label>
 
         <label class="field">
-          <span class="field-label">Minimum dividend yield (%)</span>
+          <span class="field-label">Minimum Dividend Yield (%)</span>
           <input type="number" name="min_dividend_yield_pct" min="0" max="20" step="0.5" value="0" />
         </label>
 
         <label class="field">
-          <span class="field-label">Maximum volatility (%)</span>
+          <span class="field-label">Maximum Volatility (%)</span>
           <input type="number" name="max_volatility_pct" min="0" max="200" step="5" value="" placeholder="No limit" />
         </label>
 
         <label class="field">
-          <span class="field-label">Max single-position size <span class="info" data-tip="No single instrument will exceed this share of the portfolio.">i</span></span>
+          <span class="field-label">Max Single-Position Size <span class="info" data-tip="No single instrument will exceed this share of the portfolio.">i</span></span>
           <select name="max_position_size">
             <option value="0.05">5%</option>
             <option value="0.10">10%</option>
@@ -162,7 +162,7 @@
         </label>
 
         <fieldset class="field" id="sector-exclusions">
-          <legend class="field-label">Exclude sectors</legend>
+          <legend class="field-label">Exclude Sectors</legend>
           <div id="sector-list" class="sector-grid"><span class="muted">Loading sectors&hellip;</span></div>
         </fieldset>
 
@@ -172,25 +172,25 @@
         </fieldset>
 
         <fieldset class="field" id="theme-prefs">
-          <legend class="field-label">Preferred themes</legend>
+          <legend class="field-label">Preferred Themes</legend>
           <div id="theme-list" class="sector-grid"><span class="muted">Loading themes&hellip;</span></div>
         </fieldset>
 
         <label class="field">
-          <span class="field-label">Exclude specific tickers</span>
+          <span class="field-label">Exclude Specific Tickers</span>
           <input type="text" name="exclude_tickers" placeholder="e.g. CBA.AX, BHP.AX" />
         </label>
       </details>
 
       <div class="form-actions">
-        <button type="submit" class="btn-primary" id="submit-btn">Build portfolio</button>
+        <button type="submit" class="btn-primary" id="submit-btn">Build Portfolio</button>
         <button type="button" class="btn-link" id="reset-btn" title="Reset all inputs to defaults">Reset</button>
         <button type="button" class="btn-link" id="share-btn" title="Copy a shareable URL of these inputs">Share</button>
       </div>
       <p class="muted" id="status-msg" aria-live="polite"></p>
 
       <div class="recent-card" id="recent-card" hidden>
-        <div class="recent-header">Recent analyses</div>
+        <div class="recent-header">Recent Analyses</div>
         <ul id="recent-list"></ul>
       </div>
     </form>
@@ -198,8 +198,8 @@
     <section class="results-area" id="results">
       <!-- Empty state until first submission -->
       <div class="card empty-state" id="empty-state">
-        <h2>Your portfolio will appear here</h2>
-        <p class="card-lede">Fill out the form and click <em>Build portfolio</em>, or paste a description into the AI box and click <em>Auto-fill form</em>.</p>
+        <h2>Your Portfolio Will Appear Here</h2>
+        <p class="card-lede">Fill out the form and click <em>Build Portfolio</em>, or paste a description into the AI box and click <em>Auto-Fill Form</em>.</p>
         <div class="empty-mock">
           <div class="empty-mock-row">
             <div class="empty-mock-card"></div>
@@ -218,15 +218,15 @@
         </div>
 
         <div class="card explain-card" id="explain-card" hidden>
-          <h2>Plain-English summary <span class="ai-badge">AI</span></h2>
+          <h2>Plain-English Summary <span class="ai-badge">AI</span></h2>
           <div class="explain-body" id="explain-body">Generating&hellip;</div>
         </div>
 
         <div class="card">
-          <h2>Candidate portfolio</h2>
+          <h2>Candidate Portfolio</h2>
           <p class="muted" id="screen-meta"></p>
           <div class="risk-meter-wrap">
-            <div class="risk-meter-label">Risk level (annualised volatility)</div>
+            <div class="risk-meter-label">Risk Level (Annualised Volatility)</div>
             <div class="risk-meter">
               <div class="risk-meter-track">
                 <div class="risk-meter-fill" id="risk-fill"></div>
@@ -235,7 +235,7 @@
             </div>
           </div>
           <div class="metrics-row">
-            <div class="metric"><div class="metric-label">Expected return <span class="info" data-tip="Weighted-average annualised return of the holdings, based on their 5y (preferred) or 3y history.">i</span></div><div class="metric-value" id="m-return">&mdash;</div><div class="metric-sub">Annualised, historical</div></div>
+            <div class="metric"><div class="metric-label">Expected Return <span class="info" data-tip="Weighted-average annualised return of the holdings, based on their 5y (preferred) or 3y history.">i</span></div><div class="metric-value" id="m-return">&mdash;</div><div class="metric-sub">Annualised, historical</div></div>
             <div class="metric"><div class="metric-label">Volatility <span class="info" data-tip="Standard deviation of annual returns. A higher number means bigger swings up and down.">i</span></div><div class="metric-value" id="m-vol">&mdash;</div><div class="metric-sub">Annualised</div></div>
             <div class="metric"><div class="metric-label">Worst drawdown <span class="info" data-tip="The largest peak-to-trough decline in the underlying holdings over a 5-year window. The pain you would have endured at the worst point.">i</span></div><div class="metric-value" id="m-dd">&mdash;</div><div class="metric-sub">5-year, peak-to-trough</div></div>
             <div class="metric"><div class="metric-label">Dividend yield <span class="info" data-tip="Trailing 12-month dividends as a % of price. Income-focused users often target 3-5% here.">i</span></div><div class="metric-value" id="m-yield">&mdash;</div><div class="metric-sub">Trailing 12 months</div></div>
@@ -243,7 +243,7 @@
         </div>
 
         <div class="card" id="projection-card" hidden>
-          <h2>Projected outcome over your horizon</h2>
+          <h2>Projected Outcome Over Your Horizon</h2>
           <p class="card-lede">
             Lognormal projection assuming the historical return and volatility hold steady. The shaded band is the 80% confidence range. Past performance does not predict the future.
           </p>
@@ -259,7 +259,7 @@
         </div>
 
         <div class="card">
-          <h2>Asset allocation</h2>
+          <h2>Asset Allocation</h2>
           <div class="alloc-row">
             <canvas id="alloc-chart" width="320" height="320"></canvas>
             <div id="alloc-legend" class="alloc-legend"></div>
@@ -272,10 +272,10 @@
           <div class="table-wrap holdings-desktop">
             <table id="holdings-table">
               <thead><tr>
-                <th>Ticker</th><th>Name</th><th>Asset class</th>
+                <th>Ticker</th><th>Name</th><th>Asset Class</th>
                 <th class="num">Weight</th><th class="num">$ AUD</th>
                 <th class="num">Sharpe</th><th class="num">1y</th><th class="num">5y</th>
-                <th class="num">Yield</th><th>5y trend</th>
+                <th class="num">Yield</th><th>5y Trend</th>
               </tr></thead>
               <tbody></tbody>
             </table>
@@ -284,7 +284,7 @@
         </div>
 
         <div class="card glossary-card">
-          <h2>Understanding the numbers</h2>
+          <h2>Understanding The Numbers</h2>
           <dl class="glossary">
             <dt>Sharpe ratio</dt><dd>Reward per unit of risk. <strong>Above 1.0 is good</strong>; above 2.0 is exceptional. Below 0 means the asset underperformed the cash rate.</dd>
             <dt>Volatility</dt><dd>How much returns swing year-to-year. ETFs usually 8-25%, individual stocks 20-60%, themes/crypto 50-100%+.</dd>
@@ -300,7 +300,7 @@
         </div>
 
         <div class="result-actions">
-          <button type="button" class="btn-secondary" id="print-btn">Save as PDF / Print</button>
+          <button type="button" class="btn-secondary" id="print-btn">Save As PDF / Print</button>
         </div>
 
       </div>
