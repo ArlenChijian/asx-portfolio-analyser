@@ -640,6 +640,7 @@ function renderHoldingsMobile(holdings) {
     const color = colorFor(h.asset_class);
     const card = document.createElement("div");
     card.className = "holding-card";
+    card.dataset.ticker = h.ticker;
     card.innerHTML = `
       <div class="holding-card-header">
         <span class="holding-card-ticker">${h.ticker}</span>
@@ -652,9 +653,43 @@ function renderHoldingsMobile(holdings) {
         <span><strong>${fmtPct(h.return_5y)}</strong> 5y CAGR</span>
         <span><strong>${fmtPct(h.dividend_yield_ttm)}</strong> yield</span>
         <span><strong>${fmtSharpe(h.sharpe_used)}</strong> Sharpe</span>
-      </div>`;
+      </div>
+      <div class="holding-card-expand muted">Tap for full metrics &raquo;</div>`;
+    card.addEventListener("click", () => toggleMobileDetail(card, h));
     c.appendChild(card);
   }
+}
+
+function toggleMobileDetail(card, h) {
+  const existing = card.querySelector(".holding-card-detail");
+  if (existing) { existing.remove();
+    const hint = card.querySelector(".holding-card-expand");
+    if (hint) hint.style.display = "";
+    return;
+  }
+  // Close other open mobile details.
+  document.querySelectorAll(".holding-card .holding-card-detail").forEach(d => d.remove());
+  document.querySelectorAll(".holding-card .holding-card-expand").forEach(s => s.style.display = "");
+  const hint = card.querySelector(".holding-card-expand");
+  if (hint) hint.style.display = "none";
+
+  const detail = document.createElement("div");
+  detail.className = "holding-card-detail";
+  detail.innerHTML = `
+    <div class="mobile-detail-grid">
+      <div class="detail-cell"><strong>1y return</strong>${fmtPct(h.return_1y)}</div>
+      <div class="detail-cell"><strong>3y return</strong>${fmtPct(h.return_3y)}</div>
+      <div class="detail-cell"><strong>5y return</strong>${fmtPct(h.return_5y)}</div>
+      <div class="detail-cell"><strong>1y volatility</strong>${fmtPct(h.volatility_1y)}</div>
+      <div class="detail-cell"><strong>5y max drawdown</strong>${fmtPct(h.max_drawdown_5y)}</div>
+      <div class="detail-cell"><strong>Sharpe</strong>${fmtSharpe(h.sharpe_used)}</div>
+      <div class="detail-cell"><strong>Yield (TTM)</strong>${fmtPct(h.dividend_yield_ttm)}</div>
+      <div class="detail-cell"><strong>Sleeve</strong>${h.asset_class}</div>
+    </div>
+    <div class="rationale-row">${h.rationale}</div>
+    <div class="fundamentals-row" data-ticker="${h.ticker}"><span class="muted">Loading fundamentals&hellip;</span></div>`;
+  card.appendChild(detail);
+  fetchAndRenderFundamentals(h.ticker, detail.querySelector(".fundamentals-row"));
 }
 
 function toggleDetail(tr, h) {

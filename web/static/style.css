@@ -736,3 +736,48 @@ tbody tr:hover { background: var(--bg-soft); }
   .hero { padding-top: 0; }
   .container { max-width: 100%; padding: 0; }
 }
+
+/* ---------- v0.8: mobile holding detail ---------- */
+.holding-card-expand {
+  font-size: 11px;
+  margin-top: 10px;
+  text-align: right;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.holding-card-detail {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  animation: fadeUp .25s ease both;
+}
+.mobile-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.holding-card-detail .detail-cell {
+  border-left: 2px solid var(--accent);
+  padding-left: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.holding-card-detail .detail-cell strong {
+  display: block; color: var(--text); font-size: 13px;
+  font-variant-numeric: tabular-nums; font-weight: 600;
+  margin-top: 2px;
+}
+.holding-card-detail .rationale-row {
+  font-size: 12px; font-style: italic;
+  color: var(--text-muted);
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin: 12px 0 0;
+}
+.holding-card-detail .fundamentals-row {
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px dashed var(--border);
+  grid-template-columns: 1fr 1fr;
+}
